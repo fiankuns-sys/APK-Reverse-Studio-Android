@@ -2,6 +2,12 @@ name: Android v1.0 device smoke (emulator)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-device-smoke.yml'
+      - 'tools/android-device-smoke.sh'
 
 permissions:
   contents: read
