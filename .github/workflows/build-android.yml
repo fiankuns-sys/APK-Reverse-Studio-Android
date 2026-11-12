@@ -118,9 +118,5 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$SUM" --clobber
           else
-            gh release create "$TAG" "$APK" "$SUM" \\
-              --target "$GITHUB_SHA" \\
-              --title 'APK Reverse Studio v1.0 Build 16 — Debug APK' \\
-              --notes 'Debug APK for testing. Not a validated production release; ChatGPT account authorization and device compatibility still require testing.' \\
-              --prerelease
+            gh release create "$TAG" "$APK" "$SUM" --target "$GITHUB_SHA" --title 'APK Reverse Studio v1.0 Build 16 (Debug)' --notes 'Debug APK for testing. ChatGPT authorization and device compatibility still require testing.' --prerelease
           fi
