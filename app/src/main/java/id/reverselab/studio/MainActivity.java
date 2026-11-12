@@ -59,6 +59,8 @@ public class MainActivity extends Activity {
     private static final int REQUEST_APKTOOL_BUNDLE = 1704;
     private static final int REQUEST_EXPORT_APKTOOL = 1705;
     private static final int REQUEST_BUILD_REPORT = 1706;
+    private static final int REQUEST_LUA_SCRIPT = 1707;
+    private static final int MAX_LUA_SOURCE_BYTES = 256 * 1024;
     private static final String BUILD_REPORT_FILE = "build-receipt-v09.json";
     private static final String BUILD_REPORT_BINDING_FILE = "build-receipt-binding-v13.json";
     private static final long MAX_FILE_BYTES = ZipIndexInspector.MAX_INPUT;
@@ -131,6 +133,15 @@ public class MainActivity extends Activity {
                 intent.setType("*/*");
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                 startActivityForResult(intent, REQUEST_DOCUMENT);
+            });
+        }
+        @JavascriptInterface public void chooseLuaFile() {
+            runOnUiThread(() -> {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivityForResult(intent, REQUEST_LUA_SCRIPT);
             });
         }
         @JavascriptInterface public void chooseJadxBundle() {
@@ -247,6 +258,9 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data) {
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==REQUEST_LUA_SCRIPT && resultCode==RESULT_OK && data!=null && data.getData()!=null){
+            importLuaReadOnly(data.getData());return;
+        }
         if(requestCode==REQUEST_BUILD_REPORT && resultCode==RESULT_OK && data!=null && data.getData()!=null){
             importBuildReport(data.getData());return;
         }
@@ -304,6 +318,42 @@ public class MainActivity extends Activity {
             prefs.edit().putString("file_json",file.toString()).apply();
             emit("onNativeFile",file);
         } catch (JSONException e) { Toast.makeText(this,"Metadata tidak dapat disimpan",Toast.LENGTH_LONG).show(); }
+    }
+
+    /** Read text-only Lua from SAF. Does not execute imported code or modify a game. */
+    private void importLuaReadOnly(Uri uri) {
+        worker.submit(() -> {
+            JSONObject out = new JSONObject();
+            try {
+                String name = "script.lua";
+                try (Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)) {
+                    if(c!=null && c.moveToFirst()){
+                        int i=c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                        if(i>=0 && !c.isNull(i))name=c.getString(i);
+                    }
+                } catch(RuntimeException ignored){ /* file name optional */ }
+                if(name.length()>180 || !(name.toLowerCase(java.util.Locale.ROOT).endsWith(".lua") || name.toLowerCase(java.util.Locale.ROOT).endsWith(".txt")))
+                    throw new IOException("Pilih source Lua .lua atau .txt (bukan binary bytecode)");
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                try(InputStream input=getContentResolver().openInputStream(uri)) {
+                    if(input==null)throw new IOException("Berkas tidak dapat dibuka");
+                    byte[] buf=new byte[8192];int n;
+                    while((n=input.read(buf))!=-1){
+                        if(bytes.size()+n>MAX_LUA_SOURCE_BYTES)throw new IOException("Source lebih dari 256 KiB; pecah menjadi beberapa file");
+                        bytes.write(buf,0,n);
+                    }
+                }
+                String text=java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(bytes.toByteArray())).toString();
+                if(text.length()>80000 || text.indexOf('\u0000')>=0)throw new IOException("Source bukan teks Lua valid atau melebihi 80.000 karakter");
+                out.put("status","ok");out.put("name",name);out.put("source",text);
+            } catch(Exception e){
+                try {out.put("status","error");out.put("message",String.valueOf(e.getMessage()).substring(0,Math.min(180,String.valueOf(e.getMessage()).length())));}catch(JSONException ignored){}
+            }
+            emit("onLuaImport",out);
+        });
     }
 
     // v0.9: import an offline verification RECEIPT, not an APK and not a crypto check on Android.
