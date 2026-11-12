@@ -118,6 +118,7 @@ jobs:
           test -s "$SUM"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$SUM" --clobber
+            gh release edit "$TAG" --title 'APK Reverse Studio v1.0 Build 17 (Skill Intelligence)' --notes 'Debug build with 13 evidence-based analysis skills; device and ChatGPT OAuth testing still required.' --prerelease
           else
-            gh release create "$TAG" "$APK" "$SUM" --target "$GITHUB_SHA" --title 'APK Reverse Studio v1.0 Build 16 (Debug)' --notes 'Debug APK for testing. ChatGPT authorization and device compatibility still require testing.' --prerelease
+            gh release create "$TAG" "$APK" "$SUM" --target "$GITHUB_SHA" --title 'APK Reverse Studio v1.0 Build 17 (Skill Intelligence)' --notes 'Debug APK for testing. ChatGPT authorization and device compatibility still require testing.' --prerelease
           fi
