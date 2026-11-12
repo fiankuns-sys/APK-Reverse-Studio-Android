@@ -44,6 +44,9 @@ jobs:
           java -cp /tmp/apkr-back-classes BackNavigationGuardTest
       - name: UI and bridge smoke tests
         run: |
+          node --check app/src/main/assets/skill-intelligence.js
+          node --check app/src/main/assets/lua-static-inspector.js
+          node tools/lua-static.test.js
           node tools/skill-intelligence.test.js
           node tools/smoke-test.js
           node tools/bridge-contract.test.js
@@ -82,7 +85,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Reverse-Studio-v1.0-build17-ci-diagnostics
+          name: APK-Reverse-Studio-v1.0-build18-ci-diagnostics
           path: build-output/gradle.log
           if-no-files-found: warn
       - name: Verify debug APK and prepare a flat download package
@@ -95,12 +98,12 @@ jobs:
           "$TOOLS/apksigner" verify --verbose "$APK"
           "$TOOLS/aapt" dump badging "$APK" | grep "package: name='id.reverselab.studio'"
           mkdir -p debug-output
-          cp "$APK" debug-output/APK-Reverse-Studio-v1.0-build17-debug.apk
-          (cd debug-output && sha256sum APK-Reverse-Studio-v1.0-build17-debug.apk > SHA256SUMS.txt)
+          cp "$APK" debug-output/APK-Reverse-Studio-v1.0-build18-debug.apk
+          (cd debug-output && sha256sum APK-Reverse-Studio-v1.0-build18-debug.apk > SHA256SUMS.txt)
       - name: Upload debug APK and its checksum
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Reverse-Studio-v1.0-build17-debug
+          name: APK-Reverse-Studio-v1.0-build18-debug
           path: debug-output/
           if-no-files-found: error
 
@@ -111,14 +114,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v1.0-build17-debug'
-          APK='debug-output/APK-Reverse-Studio-v1.0-build17-debug.apk'
+          TAG='v1.0-build18-debug'
+          APK='debug-output/APK-Reverse-Studio-v1.0-build18-debug.apk'
           SUM='debug-output/SHA256SUMS.txt'
           test -s "$APK"
           test -s "$SUM"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$SUM" --clobber
-            gh release edit "$TAG" --title 'APK Reverse Studio v1.0 Build 17 (Skill Intelligence)' --notes 'Debug build with 13 evidence-based analysis skills; device and ChatGPT OAuth testing still required.' --prerelease
+            gh release edit "$TAG" --title 'APK Reverse Studio v1.0 Build 18 (Lua Static Inspector)' --notes 'Debug build with 13 evidence-based analysis skills; device and ChatGPT OAuth testing still required.' --prerelease
           else
-            gh release create "$TAG" "$APK" "$SUM" --target "$GITHUB_SHA" --title 'APK Reverse Studio v1.0 Build 17 (Skill Intelligence)' --notes 'Debug APK for testing. ChatGPT authorization and device compatibility still require testing.' --prerelease
+            gh release create "$TAG" "$APK" "$SUM" --target "$GITHUB_SHA" --title 'APK Reverse Studio v1.0 Build 18 (Lua Static Inspector)' --notes 'Debug APK for testing. ChatGPT authorization and device compatibility still require testing.' --prerelease
           fi
