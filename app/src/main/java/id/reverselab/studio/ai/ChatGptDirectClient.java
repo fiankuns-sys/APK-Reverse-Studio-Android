@@ -101,7 +101,15 @@ public final class ChatGptDirectClient {
                 .put("email",p.optString("email", "")).put("name",p.optString("name",""))
                 .put("clientId",p.optString("client_id", ""))
                 .put("expiresAt",p.optLong("expires_at",0));
-        }catch(Exception e){return new JSONObject().put("connected",false).put("allowed",false).put("error","Masuk kembali diperlukan");}
+        }catch(Exception e){
+            JSONObject failed = new JSONObject();
+            try {
+                failed.put("connected", false);
+                failed.put("allowed", false);
+                failed.put("error", "Masuk kembali diperlukan");
+            } catch(org.json.JSONException ignored) { }
+            return failed;
+        }
     }
     private static boolean hasConsent(JSONObject profile){return DirectAuthPolicy.grantedScope(profile.optString("scope",""));}
     private String hostId(){String id=prefs.getString("host_id","");if(!id.isEmpty())return id;id="urn:uuid:"+UUID.randomUUID();prefs.edit().putString("host_id",id).commit();return id;}
