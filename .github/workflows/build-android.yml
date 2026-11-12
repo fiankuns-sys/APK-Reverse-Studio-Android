@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,3 +102,25 @@ jobs:
           name: APK-Reverse-Studio-v1.0-build16-debug
           path: debug-output/
           if-no-files-found: error
+
+      - name: Publish direct-download debug APK on GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='v1.0-build16-debug'
+          APK='debug-output/APK-Reverse-Studio-v1.0-build16-debug.apk'
+          SUM='debug-output/SHA256SUMS.txt'
+          test -s "$APK"
+          test -s "$SUM"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" "$SUM" --clobber
+          else
+            gh release create "$TAG" "$APK" "$SUM" \\
+              --target "$GITHUB_SHA" \\
+              --title 'APK Reverse Studio v1.0 Build 16 — Debug APK' \\
+              --notes 'Debug APK for testing. Not a validated production release; ChatGPT account authorization and device compatibility still require testing.' \\
+              --prerelease
+          fi
