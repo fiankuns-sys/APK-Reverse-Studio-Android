@@ -51,6 +51,7 @@ const callRules=[
 function scan(raw){
  if(typeof raw!=='string')return {status:'error',message:'Sumber Lua harus berupa teks'};
  if(raw.length>MAX_SOURCE)return {status:'error',message:'Cuplikan melewati batas 150.000 karakter; pecah menjadi beberapa file'};
+ if(raw.indexOf('\u0000')>=0 || raw.startsWith('\u001bLua'))return {status:'error',message:'Bytecode Lua bukan source teks dan tidak dapat dianalisis oleh lexer ini'};
  if(!raw.trim())return {status:'empty',message:'Tempel kode Lua untuk pemeriksaan offline'};
  const parsed=lex(raw),t=parsed.tokens;
  const deps=[],defs=[],findings=[],platform=[],seen=new Set();
