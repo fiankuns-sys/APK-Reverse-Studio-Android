@@ -1,0 +1,33 @@
+# Never commit personal signing keys or signing passwords
+*.jks
+*.keystore
+*.p12
+*.pkcs12
+*.pem
+*.pk8
+*.env
+.env
+.env.*
+**/secrets/
+**/private-keys/
+# Generated APKs and extracted user data
+*.apk
+*.aab
+*.apks
+*.apkm
+*.xapk
+*.idsig
+*.receipt.json
+build/
+.gradle/
+**/build/
+__pycache__/
+*.pyc
+.DS_Store
+local.properties
+# Repo fixtures are synthetic APKs needed by parser unit tests.
+!tools/fixtures/*.apk
+!tools/fixtures/*.xapk
+# Gateway job database contains user-approved metadata/results
+codex-gateway/private-state/
+*.tmp

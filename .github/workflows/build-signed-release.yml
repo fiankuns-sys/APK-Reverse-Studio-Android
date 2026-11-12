@@ -1,0 +1,94 @@
+name: Build APK Reverse Studio v1.0 (stable signed release)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android 35 SDK and build tools
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: v1.0 preflight checks
+        run: |
+          python3 tools/preflight-v10.py
+          python3 tools/test-verify-orientation.py
+          bash -n tools/android-device-smoke.sh
+          node --check app/src/main/assets/studio.js
+      - name: Direct ChatGPT OAuth policy regression
+        run: |
+          mkdir -p /tmp/apkr-oauth-classes
+          javac -d /tmp/apkr-oauth-classes app/src/main/java/id/reverselab/studio/ai/DirectAuthPolicy.java tools/DirectAuthPolicyTest.java
+          java -cp /tmp/apkr-oauth-classes DirectAuthPolicyTest
+      - name: Back navigation concurrency and lifecycle regression
+        run: |
+          mkdir -p /tmp/apkr-back-classes
+          javac -d /tmp/apkr-back-classes app/src/main/java/id/reverselab/studio/BackNavigationGuard.java tools/BackNavigationGuardTest.java
+          java -cp /tmp/apkr-back-classes BackNavigationGuardTest
+      - name: Run UI and direct sign-in regression tests
+        run: |
+          node tools/smoke-test.js
+          node tools/bridge-contract.test.js
+      - name: Build unsigned release APK
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Zipalign, sign and verify with a persistent key
+        shell: bash
+        env:
+          APKR_KEYSTORE_BASE64: ${{ secrets.APKR_KEYSTORE_BASE64 }}
+          APKR_KEYSTORE_PASSWORD: ${{ secrets.APKR_KEYSTORE_PASSWORD }}
+          APKR_KEY_PASSWORD: ${{ secrets.APKR_KEY_PASSWORD }}
+          APKR_KEY_ALIAS: ${{ secrets.APKR_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APKR_KEYSTORE_BASE64" || -z "$APKR_KEYSTORE_PASSWORD" || -z "$APKR_KEY_PASSWORD" || -z "$APKR_KEY_ALIAS" ]]; then
+            echo 'Missing signing secrets. Configure the four APKR_* secrets in GitHub repository settings.' >&2
+            exit 1
+          fi
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/apkr-release.jks"
+          ALIGNED="$RUNNER_TEMP/apkr-aligned-unsigned.apk"
+          SIGNED="$RUNNER_TEMP/APK-Reverse-Studio-v1.0-signed.apk"
+          trap 'rm -f "$KEYSTORE" "$ALIGNED"' EXIT
+          printf '%s' "$APKR_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [[ ! -f "$UNSIGNED" ]]; then
+            echo 'Expected release APK not found. Check Gradle output.' >&2
+            exit 1
+          fi
+          SDK_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          "$SDK_TOOLS/zipalign" -P 16 -f 4 "$UNSIGNED" "$ALIGNED"
+          "$SDK_TOOLS/zipalign" -c -P 16 4 "$ALIGNED"
+          export APKR_STORE_PASS="$APKR_KEYSTORE_PASSWORD"
+          export APKR_KEY_PASS="$APKR_KEY_PASSWORD"
+          "$SDK_TOOLS/apksigner" sign \
+            --ks "$KEYSTORE" --ks-key-alias "$APKR_KEY_ALIAS" \
+            --ks-pass env:APKR_STORE_PASS --key-pass env:APKR_KEY_PASS \
+            --out "$SIGNED" "$ALIGNED"
+          "$SDK_TOOLS/apksigner" verify --verbose --print-certs "$SIGNED"
+          "$SDK_TOOLS/aapt" dump badging "$SIGNED" | grep "package: name='id.reverselab.studio'"
+          mkdir -p "$GITHUB_WORKSPACE/release-output"
+          cp "$SIGNED" "$GITHUB_WORKSPACE/release-output/"
+          (cd "$GITHUB_WORKSPACE/release-output" && sha256sum APK-Reverse-Studio-v1.0-signed.apk > SHA256SUMS.txt)
+      - name: Upload verified signed release
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-Reverse-Studio-v1.0-stable-signed
+          path: release-output/
+          if-no-files-found: error
+          retention-days: 7

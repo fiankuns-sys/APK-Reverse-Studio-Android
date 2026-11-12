@@ -1,0 +1,27 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'id.reverselab.studio'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'id.reverselab.studio'
+        minSdk 26
+        targetSdk 35
+        versionCode 16
+        versionName '1.0.0-direct-oauth.16'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}

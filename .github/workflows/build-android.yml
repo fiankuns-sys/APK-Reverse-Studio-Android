@@ -1,0 +1,104 @@
+name: Build Android APK Reverse Studio v1.0
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install platform
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: v1.0 static preflight and source syntax
+        run: |
+          python3 tools/preflight-v10.py
+          python3 tools/test-verify-orientation.py
+          bash -n tools/android-device-smoke.sh
+          node --check app/src/main/assets/studio.js
+      - name: Direct ChatGPT OAuth policy regression
+        run: |
+          mkdir -p /tmp/apkr-oauth-classes
+          javac -d /tmp/apkr-oauth-classes app/src/main/java/id/reverselab/studio/ai/DirectAuthPolicy.java tools/DirectAuthPolicyTest.java
+          java -cp /tmp/apkr-oauth-classes DirectAuthPolicyTest
+      - name: Back navigation concurrency and lifecycle regression
+        run: |
+          mkdir -p /tmp/apkr-back-classes
+          javac -d /tmp/apkr-back-classes app/src/main/java/id/reverselab/studio/BackNavigationGuard.java tools/BackNavigationGuardTest.java
+          java -cp /tmp/apkr-back-classes BackNavigationGuardTest
+      - name: UI and bridge smoke tests
+        run: |
+          node tools/smoke-test.js
+          node tools/bridge-contract.test.js
+      - name: Java ZIP inspector tests
+        run: |
+          python3 tools/make-fixtures.py
+          mkdir -p /tmp/inspector-test-classes
+          python3 tools/make-binary-fixtures.py
+          javac -d /tmp/inspector-test-classes app/src/main/java/id/reverselab/studio/inspector/*.java tools/InspectorTest.java tools/BinaryInspectorTest.java tools/PackageSetTest.java tools/AdvancedInspectorTest.java tools/DexSymbolInspectorTest.java tools/JadxBundleInspectorTest.java tools/ApktoolBundleInspectorTest.java
+          java -cp /tmp/inspector-test-classes InspectorTest
+          java -cp /tmp/inspector-test-classes BinaryInspectorTest
+          python3 tools/make-v04-fixtures.py
+          java -cp /tmp/inspector-test-classes PackageSetTest
+          python3 tools/make-v05-fixtures.py
+          java -cp /tmp/inspector-test-classes AdvancedInspectorTest
+          python3 tools/make-v06-fixtures.py
+          java -cp /tmp/inspector-test-classes DexSymbolInspectorTest
+          python3 tools/make-v07-fixtures.py
+          java -cp /tmp/inspector-test-classes JadxBundleInspectorTest
+          java -cp /tmp/inspector-test-classes ApktoolBundleInspectorTest
+      - name: Offline Apktool patch workflow tests
+        run: python3 tools/test-apktool-workflow.py
+      - name: Offline build/sign/verify safety tests (SDK mocks)
+        run: python3 tools/test-build-sign-verify.py
+      - name: Portable JADX review bundle creator
+        run: python3 tools/test-jadx-bundle.py
+      - name: Offline JADX launcher tests (no real JADX invocation)
+        run: node --test tools/jadx-offline.test.mjs
+      - name: Build debug APK with diagnostic log
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build-output
+          gradle --no-daemon --stacktrace :app:assembleDebug 2>&1 | tee build-output/gradle.log
+      - name: Keep build diagnostics when compilation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-Reverse-Studio-v1.0-build16-ci-diagnostics
+          path: build-output/gradle.log
+          if-no-files-found: warn
+      - name: Verify debug APK and prepare a flat download package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$APK"
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          "$TOOLS/apksigner" verify --verbose "$APK"
+          "$TOOLS/aapt" dump badging "$APK" | grep "package: name='id.reverselab.studio'"
+          mkdir -p debug-output
+          cp "$APK" debug-output/APK-Reverse-Studio-v1.0-build16-debug.apk
+          (cd debug-output && sha256sum APK-Reverse-Studio-v1.0-build16-debug.apk > SHA256SUMS.txt)
+      - name: Upload debug APK and its checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-Reverse-Studio-v1.0-build16-debug
+          path: debug-output/
+          if-no-files-found: error
