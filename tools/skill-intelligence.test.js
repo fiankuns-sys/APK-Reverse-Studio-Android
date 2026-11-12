@@ -7,7 +7,7 @@ const window={};
 vm.runInNewContext(source,{window},{timeout:1200});
 const skills=window.SkillIntelligence;
 assert.ok(skills,'Global skill engine must load before UI');
-assert.equal(skills.catalog.length,13,'All approved specialist domains must be present');
+assert.equal(skills.catalog.length,14,'All approved specialist domains including Lua must be present');
 const ids=skills.catalog.map(x=>x.id);
 assert.equal(new Set(ids).size,ids.length,'Skill ids must be unique');
 for(const id of ids){
@@ -32,6 +32,8 @@ assert.ok(resultFor('jvm').evidence.some(x=>x.kind==='parser'));
 assert.ok(resultFor('game').evidence.some(x=>/unity/i.test(x.label)),'Game engine evidence');
 assert.ok(resultFor('web').evidence.some(x=>/javascript/i.test(x.label)),'JavaScript asset');
 assert.ok(resultFor('integrity').evidence.some(x=>/signing/i.test(x.label)),'Signing metadata');
+assert.equal(resultFor('lua').status,'bukti-terbatas');
+assert.ok(skills.questionFor('lua').includes('read-only'));
 assert.equal(resultFor('python').status,'bukti-terbatas','APK without Python evidence must not claim Python');
 assert.ok(skills.questionFor('modding').includes('offline'),'Game mods restricted to offline authorized use');
 assert.ok(skills.questionFor('game-integrity').includes('anti-cheat'),'Integrity review should avoid bypass instructions');
@@ -43,4 +45,4 @@ assert.ok(attack.evidence.length>0,'Untrusted path retained for escaping at UI b
 assert.ok(attack.evidence.every(x=>typeof x.path==='string'));
 const big={entries:Array.from({length:7000},(_,i)=>({name:'assets/'+i+'.js'}))};
 assert.ok(skills.evaluate(big).find(x=>x.id==='web').evidence.length<=6,'UI evidence capped');
-console.log('Skill Intelligence PASS: 13 skill schemas, classification, provenance, uncertainty, privacy, safe game scope, limits');
+console.log('Skill Intelligence PASS: 14 skill schemas, classification, provenance, uncertainty, privacy, safe game scope, limits');
