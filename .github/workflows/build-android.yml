@@ -44,6 +44,7 @@ jobs:
           java -cp /tmp/apkr-back-classes BackNavigationGuardTest
       - name: UI and bridge smoke tests
         run: |
+          node tools/skill-intelligence.test.js
           node tools/smoke-test.js
           node tools/bridge-contract.test.js
       - name: Java ZIP inspector tests
