@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const code = fs.readFileSync(path.join(__dirname, '../app/src/main/assets/studio.js'), 'utf8');
 const skillCode = fs.readFileSync(path.join(__dirname, '../app/src/main/assets/skill-intelligence.js'), 'utf8');
+const luaCode = fs.readFileSync(path.join(__dirname, '../app/src/main/assets/lua-static-inspector.js'), 'utf8');
 const disk = new Map();
 function runApp() {
   const handlers = {};
@@ -19,6 +20,7 @@ function runApp() {
   const localStorage={getItem(key){return disk.get(key)||null;},setItem(key,value){disk.set(key,value);}};
   const context={window,document,localStorage,console,setTimeout(){return 1;},clearTimeout(){}};
   vm.runInNewContext(skillCode,context,{timeout:1000});
+  vm.runInNewContext(luaCode,context,{timeout:1000});
   vm.runInNewContext(code,context,{timeout:1000});
   return {root,handlers,window};
 }
@@ -103,6 +105,7 @@ function runAppWithNative(bridge){
   const localStorage={getItem(key){return disk.get(key)||null;},setItem(key,value){disk.set(key,value);}};
   const testContext={window,document,localStorage,console,setTimeout(){return 1;},clearTimeout(){}};
   vm.runInNewContext(skillCode,testContext,{timeout:1500});
+  vm.runInNewContext(luaCode,testContext,{timeout:1500});
   vm.runInNewContext(code,testContext,{timeout:1500});
   window.StudioUI.onChatGptUpdate({status:'models',data:{models:[{id:'gpt-test-model',label:'Testing model'}]}});
   return {root,window,handlers};
