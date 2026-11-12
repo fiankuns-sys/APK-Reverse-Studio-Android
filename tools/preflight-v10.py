@@ -15,7 +15,7 @@ direct_client=(root/'app/src/main/java/id/reverselab/studio/ai/ChatGptDirectClie
 script = (root/'tools/android-device-smoke.sh').read_text()
 
 checks = {
-  'Build 16 version code (still v1.0)': 'versionCode 16' in gradle,
+  'Build 17 version code (still v1.0)': 'versionCode 17' in gradle,
   'Android Gradle project': 'compileSdk 35' in gradle,
   'Only local WebView asset': 'file:///android_asset/index.html' in java and 'setAllowUniversalAccessFromFileURLs(false)' in java,
   'Native UI readiness callback': 'onPageFinished(WebView v, String url)' in java and 'UI_READY=' in java,
