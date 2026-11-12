@@ -82,7 +82,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Reverse-Studio-v1.0-build16-ci-diagnostics
+          name: APK-Reverse-Studio-v1.0-build17-ci-diagnostics
           path: build-output/gradle.log
           if-no-files-found: warn
       - name: Verify debug APK and prepare a flat download package
@@ -95,12 +95,12 @@ jobs:
           "$TOOLS/apksigner" verify --verbose "$APK"
           "$TOOLS/aapt" dump badging "$APK" | grep "package: name='id.reverselab.studio'"
           mkdir -p debug-output
-          cp "$APK" debug-output/APK-Reverse-Studio-v1.0-build16-debug.apk
-          (cd debug-output && sha256sum APK-Reverse-Studio-v1.0-build16-debug.apk > SHA256SUMS.txt)
+          cp "$APK" debug-output/APK-Reverse-Studio-v1.0-build17-debug.apk
+          (cd debug-output && sha256sum APK-Reverse-Studio-v1.0-build17-debug.apk > SHA256SUMS.txt)
       - name: Upload debug APK and its checksum
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Reverse-Studio-v1.0-build16-debug
+          name: APK-Reverse-Studio-v1.0-build17-debug
           path: debug-output/
           if-no-files-found: error
 
@@ -111,8 +111,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v1.0-build16-debug'
-          APK='debug-output/APK-Reverse-Studio-v1.0-build16-debug.apk'
+          TAG='v1.0-build17-debug'
+          APK='debug-output/APK-Reverse-Studio-v1.0-build17-debug.apk'
           SUM='debug-output/SHA256SUMS.txt'
           test -s "$APK"
           test -s "$SUM"
